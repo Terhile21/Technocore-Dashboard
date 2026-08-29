@@ -36,9 +36,10 @@ export async function computeFingerprint(did: string): Promise<string> {
 }
 
 export function generateNonce(): string {
-  const values = new Uint32Array(3);
-  crypto.getRandomValues(values);
-  return `${Date.now()}-${values[0].toString(36)}${values[1].toString(36)}${values[2].toString(36)}`;
+  const time = Date.now();
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 900000 + 100000;
+  const nonce = `${time}${String(random).padStart(6, "0")}`;
+  return nonce.slice(0, 19);
 }
 
 export function normalizeText(text: string): string {
