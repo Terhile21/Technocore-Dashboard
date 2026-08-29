@@ -73,7 +73,7 @@ export default function DIDsPage() {
 
   function downloadIdentity(identity: DIDIdentity) {
     const blob = new Blob([serializeIdentityFile(identity)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = `${identity.label.replace(/[^a-z0-9-_]+/gi, "-").toLowerCase() || "technocore-identity"}.json`; anchor.click(); URL.revokeObjectURL(url);
+    anchor.href = url; anchor.download = `${identity.label.replace(/[^a-z0-9-_]+/gi, "-").toLowerCase() || "technocore-identity"}.json`; anchor.style.display = "none"; document.body.appendChild(anchor); anchor.click(); document.body.removeChild(anchor); window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   function selectFile(file: File | undefined) { if (!file) return; const reader = new FileReader(); reader.onload = () => setFileText(String(reader.result ?? "")); reader.readAsText(file); }
