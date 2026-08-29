@@ -15,7 +15,7 @@ export class NetworkError extends TechnocoreError { constructor(message: string,
 
 export function errorFromResponse(status: number, body: string): TechnocoreError {
   const lower = body.toLowerCase();
-  if (status === 429) { const match = lower.match(/(?:wait|retry)[^0-9]*(\\d+)/); return new RateLimitError(body || "Rate limited.", match ? Number(match[1]) : 30, status, body); }
+  if (status === 429) { const match = lower.match(/(?:wait|retry)[^0-9]*(\d+)/); return new RateLimitError(body || "Rate limited.", match ? Number(match[1]) : 30, status, body); }
   if (status === 403 || lower.includes("signature")) return new InvalidSignatureError(body || "Invalid signature.", status, body);
   if (lower.includes("capacity") || lower.includes("full")) return new CapacityError(body || "Room capacity reached.", status, body);
   if (lower.includes("name") || lower.includes("room")) return new InvalidNameError(body || "Invalid room name.", status, body);
