@@ -9,6 +9,11 @@ export function SessionGuard({ children }: { children: ReactNode }) {
 
   useSessionTimeout(minutes);
 
+  // Manual lock ("l" key) and the idle timeout above are the only auto-lock
+  // triggers. Tab-switch (visibilitychange) and navigation (beforeunload/
+  // pagehide) locks were intentionally removed: they locked the signing key
+  // on ordinary alt-tabbing, which read as random "logged out" failures
+  // rather than the deliberate browser-local security behavior it is.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "l" && !["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement).tagName)) {
@@ -16,26 +21,10 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       }
     };
 
-    const onLeave = () => {
-      lock();
-    };
-
-    const onVisibility = () => {
-      if (document.hidden) {
-        lock();
-      }
-    };
-
     window.addEventListener("keydown", onKey);
-    window.addEventListener("pagehide", onLeave);
-    window.addEventListener("beforeunload", onLeave);
-    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pagehide", onLeave);
-      window.removeEventListener("beforeunload", onLeave);
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [lock]);
 
