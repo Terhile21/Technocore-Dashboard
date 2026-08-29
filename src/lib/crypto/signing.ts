@@ -1,5 +1,6 @@
 import { signAsync } from "@noble/ed25519";
-import { bytesToBase64Url, generateNonce, normalizeText } from "@/lib/crypto/keygen";
+import { bytesToBase64Url, generateNonce } from "@/lib/crypto/keygen";
+import { normalizeText } from "@/lib/technocore/normalize";
 
 export { generateNonce, normalizeText };
 
