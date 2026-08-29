@@ -4,7 +4,9 @@ import { Copy, Fingerprint, LockKeyhole } from "lucide-react";
 import { ContributionForm } from "@/components/contributions/ContributionForm";
 import { ContributionList } from "@/components/contributions/ContributionList";
 import { proofDetails, proofLine } from "@/components/contributions/ProofCard";
+import { ConfirmDialog } from "@/components/ux/ConfirmDialog";
 import type { Contribution } from "@/lib/types";
+import { copyTextToClipboard } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function ContributionsPage() {
@@ -20,6 +22,7 @@ export default function ContributionsPage() {
   const archive = useAppStore((state) => state.archiveContribution);
   const deleteLocal = useAppStore((state) => state.deleteContribution);
   const [copied, setCopied] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const identity = useMemo(
     () => identities.find((item) => item.did === activeDid),
@@ -31,9 +34,11 @@ export default function ContributionsPage() {
   );
 
   async function copy(value: string) {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    const success = await copyTextToClipboard(value);
+    if (success) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    }
   }
 
   function save(contribution: Contribution, activity: Parameters<typeof addActivity>[0]) {
@@ -84,13 +89,23 @@ export default function ContributionsPage() {
               }
               onPrimary={setPrimary}
               onArchive={(id) => archive(id)}
-              onDelete={(id) => {
-                if (window.confirm("Delete this local record? The Technocore message will remain.")) deleteLocal(id);
-              }}
+              onDelete={(id) => setDeleteTargetId(id)}
               onRecordAnother={() => updateDraft({ publicUrl: "", description: "", source: "other" })}
             />
           </div>
         </>
+      )}
+      {deleteTargetId && (
+        <ConfirmDialog
+          title="Delete local record"
+          message="Delete this local record? The Technocore message will remain."
+          confirmLabel="Delete"
+          onConfirm={() => {
+            deleteLocal(deleteTargetId);
+            setDeleteTargetId(null);
+          }}
+          onClose={() => setDeleteTargetId(null)}
+        />
       )}
       {copied && (
         <span className="fixed bottom-5 right-5 inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-zinc-900 px-3 py-2 text-xs text-emerald-300">
