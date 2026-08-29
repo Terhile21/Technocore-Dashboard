@@ -48,7 +48,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   archiveContribution: (id) => set((state) => ({ contributions: state.contributions.map((item) => item.id === id ? { ...item, isArchived: !item.isArchived } : item) })),
   deleteContribution: (id) => set((state) => ({ contributions: state.contributions.filter((item) => item.id !== id) })),
   updateDraft: (draft) => set((state) => ({ messageDraft: { ...state.messageDraft, ...draft }, contributionDraft: { ...state.contributionDraft, ...draft } })),
-  setActiveDid: (activeDid) => set({ activeDid }),
+  setActiveDid: (activeDid) => set((state) => ({ activeDid, unlockedPrivateKey: activeDid === state.activeDid ? state.unlockedPrivateKey : null })),
   unlockedPrivateKey: null,
   sessionTimeoutMinutes: 10,
   defaultRoom: "lobby",
