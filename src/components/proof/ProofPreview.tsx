@@ -1,0 +1,3 @@
+import type { ProofPack } from "@/lib/proof";
+import { formatMarkdownProof, formatShortProof, formatShareProof } from "@/lib/proof";
+export function ProofPreview({ pack }: { pack: ProofPack }) { return <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5"><h2 className="font-semibold text-zinc-100">Live proof preview</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{formatShortProof(pack)}</p><details className="mt-4"><summary className="cursor-pointer text-xs text-zinc-500">Share and markdown formats</summary><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-950 p-3 text-xs text-zinc-500">{formatShareProof(pack)}{`\n\n`}{formatMarkdownProof(pack)}</pre></details></section>; }

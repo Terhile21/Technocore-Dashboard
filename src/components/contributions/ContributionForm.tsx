@@ -1,0 +1,26 @@
+"use client";
+import { useEffect, useState } from "react";
+import { LoaderCircle, Send } from "lucide-react";
+import { postSignedMessage, RateLimitError } from "@/lib/technocore";
+import { buildContributionMessage, type ContributionSource } from "@/lib/technocore/contribution";
+import { descriptionWarning, validatePublicUrl } from "@/lib/validation/url";
+import type { Contribution, SignedActivity } from "@/lib/types";
+import { ContributionPreview } from "@/components/contributions/ContributionPreview";
+
+const sourceOptions: ContributionSource[] = ["x", "github", "video", "article", "tool", "other"];
+type Draft = { publicUrl: string; description: string; source: ContributionSource };
+
+export function ContributionForm({ did, fingerprint, privateKey, draft, onDraft, onSuccess }: { did: string; fingerprint: string; privateKey: Uint8Array; draft: Draft; onDraft: (draft: Partial<Draft>) => void; onSuccess: (contribution: Contribution, activity: SignedActivity) => void }) {
+  const [error, setError] = useState(""); const [warning, setWarning] = useState(""); const [posting, setPosting] = useState(false); const [cooldown, setCooldown] = useState(0); const [announcement, setAnnouncement] = useState("");
+  useEffect(() => { setAnnouncement(draft.publicUrl ? buildContributionMessage({ url: draft.publicUrl, description: draft.description, source: draft.source }) : ""); }, [draft.publicUrl, draft.description, draft.source]);
+  const urlState = validatePublicUrl(draft.publicUrl);
+  function updateUrl(value: string) { onDraft({ publicUrl: value }); setWarning(validatePublicUrl(value).warning ?? ""); }
+  async function submit() {
+    const result = validatePublicUrl(draft.publicUrl); if (!result.valid) { setError(result.error ?? "Invalid URL."); return; }
+    if (!draft.description.trim()) { setError("A short description is required."); return; }
+    setPosting(true); setError("");
+    try { const posted = await postSignedMessage({ room: "technocore", text: announcement, did, privateKeyBytes: privateKey }); const createdAt = posted.timestamp ?? new Date().toISOString(); const contribution: Contribution = { id: crypto.randomUUID(), did, publicUrl: draft.publicUrl.trim(), description: draft.description.trim(), room: "technocore", sequence: posted.seq ?? 0, nonce: posted.nonce, text: posted.text, createdAt, source: draft.source }; onSuccess(contribution, { id: `${did}:technocore:${posted.nonce}`, did, room: "technocore", sequence: posted.seq ?? 0, nonce: posted.nonce, text: posted.text, timestamp: createdAt, type: "contribution" }); }
+    catch (caught) { if (caught instanceof RateLimitError) { setCooldown(caught.waitSeconds); window.setTimeout(() => setCooldown(0), caught.waitSeconds * 1000); } setError(caught instanceof Error ? caught.message : "Could not record contribution."); } finally { setPosting(false); }
+  }
+  return <div className="grid gap-6 lg:grid-cols-2"><section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5"><h2 className="font-semibold text-zinc-100">Record public work</h2><label className="mt-5 block text-sm text-zinc-300">Public URL<input value={draft.publicUrl} onChange={(event) => updateUrl(event.target.value)} placeholder="https://example.com/my-work" className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-emerald-400" />{!urlState.valid && draft.publicUrl && <span className="mt-1 block text-xs text-red-300">{urlState.error}</span>}{warning && <span className="mt-1 block text-xs text-amber-300">{warning}</span>}</label><label className="mt-4 block text-sm text-zinc-300">Description<textarea value={draft.description} onChange={(event) => { onDraft({ description: event.target.value }); setWarning(descriptionWarning(event.target.value) ?? ""); }} rows={4} placeholder="What does this work help people understand or do?" className="mt-2 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-sm outline-none focus:border-emerald-400" />{descriptionWarning(draft.description) && <span className="mt-1 block text-xs text-amber-300">{descriptionWarning(draft.description)}</span>}</label><label className="mt-4 block text-sm text-zinc-300">Work type<select value={draft.source} onChange={(event) => onDraft({ source: event.target.value as ContributionSource })} className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-emerald-400">{sourceOptions.map((source) => <option key={source}>{source}</option>)}</select></label>{error && <p className="mt-4 rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-sm text-red-300">{error}</p>}<button disabled={posting || cooldown > 0 || !draft.publicUrl || !draft.description.trim()} onClick={submit} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 disabled:opacity-40">{posting ? <LoaderCircle className="animate-spin" size={16} /> : <Send size={16} />}{posting ? "Recording..." : cooldown ? `Try again in ${cooldown}s` : "Post contribution"}</button></section><ContributionPreview did={did} fingerprint={fingerprint} url={draft.publicUrl} description={draft.description} announcement={announcement} /></div>;
+}

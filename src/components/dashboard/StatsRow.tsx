@@ -1,0 +1,7 @@
+import Link from "next/link";
+import { Activity, Fingerprint, ShieldCheck, Sparkles } from "lucide-react";
+
+export function StatsRow({ did, fingerprint, posts, contributions, lastActivity, status }: { did: string; fingerprint: string; posts: number; contributions: number; lastActivity: string; status: string }) {
+  const cards = [{ label: "Active DID", value: `${did.slice(0, 16)}...`, subtext: fingerprint, href: "/dids", icon: Fingerprint }, { label: "Signed Posts", value: String(posts), subtext: lastActivity, href: "/activity", icon: Activity }, { label: "Contributions", value: String(contributions), subtext: "recorded on Technocore", href: "/contributions", icon: Sparkles }, { label: "Status", value: status, subtext: "based on your checklist", icon: ShieldCheck }];
+  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map(({ label, value, subtext, href, icon: Icon }) => { const card = <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition hover:border-zinc-700"><div className="flex items-center justify-between"><p className="text-xs uppercase tracking-wider text-zinc-500">{label}</p><Icon size={17} className="text-emerald-400" /></div><p className="mt-4 truncate text-lg font-semibold text-zinc-100">{value}</p><p className="mt-1 truncate text-xs text-zinc-600">{subtext}</p></div>; return href ? <Link key={label} href={href}>{card}</Link> : <div key={label}>{card}</div>; })}</div>;
+}

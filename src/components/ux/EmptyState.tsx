@@ -1,0 +1,2 @@
+import Link from "next/link";
+export function EmptyState({ title, message, href, action }: { title: string; message: string; href: string; action: string }) { return <section className="rounded-2xl border border-dashed border-zinc-800 p-10 text-center"><h2 className="text-sm font-semibold text-zinc-200">{title}</h2><p className="mt-2 text-sm text-zinc-500">{message}</p><Link href={href} className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-emerald-400 px-4 text-sm font-semibold text-zinc-950">{action}</Link></section>; }

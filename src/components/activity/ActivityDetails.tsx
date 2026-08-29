@@ -1,0 +1,2 @@
+import type { SignedActivity } from "@/lib/types";
+export function ActivityDetails({ item }: { item: SignedActivity }) { return <details className="mt-2 text-xs text-zinc-500"><summary className="cursor-pointer hover:text-zinc-300">Details</summary><pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-950 p-3 font-mono text-[11px] text-zinc-500">{JSON.stringify({ did: item.did, room: item.room, nonce: item.nonce, text: item.text, sequence: item.sequence, timestamp: item.timestamp }, null, 2)}</pre></details>; }

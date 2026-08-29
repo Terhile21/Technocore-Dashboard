@@ -1,0 +1,1 @@
+export const technocoreUrl = (path: string): string => path.startsWith("/") ? `/tc${path}` : `/tc/${path}`;
