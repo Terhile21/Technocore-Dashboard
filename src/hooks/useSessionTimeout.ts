@@ -9,11 +9,13 @@ export function useSessionTimeout(timeoutMinutes: number): void {
     const timeout = Math.max(1, timeoutMinutes) * 60_000;
     let timer: number | undefined;
     const reset = () => { if (timer) window.clearTimeout(timer); timer = window.setTimeout(lockIdentity, timeout); };
-    const onVisibility = () => { if (document.hidden) lockIdentity(); else reset(); };
+    // Tab-switch (visibilitychange) no longer locks immediately — it was
+    // locking the signing key on ordinary alt-tabbing. The idle timer keeps
+    // running in the background tab and still locks after `timeout` of no
+    // pointer/keyboard activity, whether or not the tab is visible.
     reset();
-    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pointerdown", reset);
     window.addEventListener("keydown", reset);
-    return () => { if (timer) window.clearTimeout(timer); document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pointerdown", reset); window.removeEventListener("keydown", reset); };
+    return () => { if (timer) window.clearTimeout(timer); window.removeEventListener("pointerdown", reset); window.removeEventListener("keydown", reset); };
   }, [lockIdentity, timeoutMinutes]);
 }
