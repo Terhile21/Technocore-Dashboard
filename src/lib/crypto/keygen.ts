@@ -42,10 +42,6 @@ export function generateNonce(): string {
   return nonce.slice(0, 19);
 }
 
-export function normalizeText(text: string): string {
-  return text.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
-}
-
 export async function generateKeypair() {
   const privateKey = utils.randomSecretKey();
   const publicKey = await getPublicKeyAsync(privateKey);
