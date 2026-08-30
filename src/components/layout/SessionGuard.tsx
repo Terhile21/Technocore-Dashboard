@@ -16,7 +16,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   // rather than the deliberate browser-local security behavior it is.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === "l" && !["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement).tagName)) {
+      if (event.key?.toLowerCase() === "l" && !["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement | null)?.tagName ?? "")) {
         lock();
       }
     };
