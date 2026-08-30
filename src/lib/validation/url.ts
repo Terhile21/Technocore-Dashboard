@@ -7,4 +7,4 @@ export function validatePublicUrl(value: string): { valid: boolean; error?: stri
   const warning = ["localhost", "127.0.0.1", "::1"].includes(url.hostname) ? "This URL points to a local address and may not be publicly reachable." : /^(test|asdf|contribution)$/i.test(url.hostname.split(".")[0]) ? "This URL looks like a placeholder." : undefined;
   return { valid: true, warning };
 }
-export function descriptionWarning(value: string): string | undefined { return /^(test|asdf|contribution)$/i.test(value.trim()) || value.trim().length < 12 ? "Add a little more detail so the contribution is useful to others." : undefined; }
+export function descriptionWarning(value: string): string | undefined { return /^(test|asdf|contribution)$/i.test(value.trim()) ? "Add a little more detail so the contribution is useful to others." : undefined; }
