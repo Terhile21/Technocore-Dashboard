@@ -85,7 +85,7 @@ export default function ContributionsPage() {
               items={contributions}
               onCopy={(item) => void copy(proofDetails(item))}
               onCopySequence={(item) =>
-                void copy(`Signed Technocore record: room ${item.room}, sequence ${item.sequence}`)
+                void copy(`Signed Technocore record: room ${item.room}, sequence ${item.sequence ?? "pending"}`)
               }
               onPrimary={setPrimary}
               onArchive={(id) => archive(id)}
