@@ -12,7 +12,7 @@ export type SignedActivity = {
   id: string;
   did: string;
   room: string;
-  sequence: number;
+  sequence?: number;
   nonce: string;
   text: string;
   timestamp: string;
@@ -24,7 +24,7 @@ export type Contribution = {
   did: string;
   publicUrl: string;
   description: string;
-  sequence: number;
+  sequence?: number;
   room: string;
   nonce: string;
   text: string;
