@@ -95,7 +95,7 @@ export default function ProofPage() {
           <p className="text-xs uppercase tracking-wider text-zinc-500">Primary contribution</p>
           <p className="mt-3 break-all text-sm text-zinc-200">{pack.primaryContribution.publicUrl}</p>
           <p className="mt-2 text-sm text-zinc-500">
-            Room {pack.primaryContribution.room} · Sequence {pack.primaryContribution.sequence} ·{" "}
+            Room {pack.primaryContribution.room} · Sequence {pack.primaryContribution.sequence ?? "pending"} ·{" "}
             {pack.primaryContribution.createdAt}
           </p>
         </section>
