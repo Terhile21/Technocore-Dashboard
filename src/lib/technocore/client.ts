@@ -40,12 +40,33 @@ export async function getRoomMessages(room: string, options: GetRoomOptions = {}
   return Array.isArray(messages) ? messages as RoomMessage[] : [];
 }
 
+function parseSequenceFromTail(body: string, matchText: string): number | undefined {
+  const lineExp = /^\[(\d+)\]\s+\S+\s+<[^>]*>\s+(.*)$/gm;
+  const entries: Array<{ seq: number; text: string }> = [];
+  let match: RegExpExecArray | null;
+  while ((match = lineExp.exec(body)) !== null) entries.push({ seq: Number(match[1]), text: match[2].trim() });
+  if (!entries.length) return undefined;
+  const exact = entries.filter((entry) => entry.text === matchText.trim());
+  const pool = exact.length ? exact : entries;
+  return pool.reduce((max, entry) => Math.max(max, entry.seq), pool[0].seq);
+}
+
 export async function postSignedMessage(input: SignedMessageInput): Promise<PostedMessage> {
   assertRoom(input.room); const text = normalizeText(input.text); if (!text) throw new Error("Message cannot be empty."); if (text.length > MAX_MESSAGE_CHARS) throw new Error(`Messages are limited to ${MAX_MESSAGE_CHARS} characters.`);
   let nonce = nextNonce(input.did, input.room);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const signature = await signPayload(input.room, nonce, text, input.privateKeyBytes);
-    try { const path = `/r/${encodeURIComponent(input.room)}/say-signed/${encodeURIComponent(input.did)}/${encodeURIComponent(signature)}/${encodeURIComponent(nonce)}/${encodeURIComponent(text)}`; const result = await request(technocoreUrl(path)); const raw = result.raw as Record<string, unknown>; const sequence = raw?.seq ?? raw?.sequence; return { did: input.did, room: input.room, text, nonce, seq: typeof sequence === "number" ? sequence : undefined, timestamp: typeof raw?.timestamp === "string" ? raw.timestamp : undefined, raw: result.raw }; }
+    try {
+      const path = `/r/${encodeURIComponent(input.room)}/say-signed/${encodeURIComponent(input.did)}/${encodeURIComponent(signature)}/${encodeURIComponent(nonce)}/${encodeURIComponent(text)}?format=json`;
+      const result = await request(technocoreUrl(path));
+      const raw = result.raw as Record<string, unknown>;
+      let sequence = raw?.seq ?? raw?.sequence;
+      // The endpoint can also respond with a plain-text room tail rather than
+      // JSON (observed directly in production) — in that case raw is just the
+      // body string, so fall back to parsing our own posted line out of it.
+      if (typeof sequence !== "number" && typeof result.raw === "string") sequence = parseSequenceFromTail(result.raw, text);
+      return { did: input.did, room: input.room, text, nonce, seq: typeof sequence === "number" ? sequence : undefined, timestamp: typeof raw?.timestamp === "string" ? raw.timestamp : undefined, raw: result.raw };
+    }
     catch (error) { if (attempt === 0 && error instanceof Error && /nonce|replay|duplicate/i.test(error.message)) { nonce = nextNonce(input.did, input.room); continue; } throw error; }
   }
   throw new Error("Could not post signed message.");
