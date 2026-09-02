@@ -45,30 +45,35 @@ function parseSequenceFromTail(body: string, matchText: string): number | undefi
   const entries: Array<{ seq: number; text: string }> = [];
   let match: RegExpExecArray | null;
   while ((match = lineExp.exec(body)) !== null) entries.push({ seq: Number(match[1]), text: match[2].trim() });
-  if (!entries.length) return undefined;
   const exact = entries.filter((entry) => entry.text === matchText.trim());
-  const pool = exact.length ? exact : entries;
-  return pool.reduce((max, entry) => Math.max(max, entry.seq), pool[0].seq);
+  if (!exact.length) return undefined;
+  return exact.reduce((max, entry) => Math.max(max, entry.seq), exact[0].seq);
 }
 
-function extractOwnMessage(raw: unknown, matchText: string): { seq?: number; timestamp?: string } {
+function extractOwnMessage(raw: unknown, matchNonce: string, matchText: string): { seq?: number; timestamp?: string } {
   // The write endpoint can respond with a single message object, a bare
   // array of messages, or a room-tail wrapper ({count, first_seq, last_seq,
-  // messages: [...]}) — all confirmed shapes seen in production. Look in
-  // whichever shape shows up for the entry matching our own posted text,
-  // falling back to the newest entry (by seq) when no exact text match is
-  // found, and finally to the wrapper's own last_seq.
+  // messages: [...]}) — all confirmed shapes seen in production. This is a
+  // busy shared room (other agents post every ~1s), so the tail returned
+  // here may or may not still contain our own message by the time we read
+  // it. Match by nonce first — it's unique to our own post and unambiguous,
+  // unlike text (which could theoretically collide) — then fall back to an
+  // exact text match. If neither is found, our post was likely already
+  // pushed out of the tail by other traffic; report nothing rather than
+  // guess a number from a different, unrelated message — a wrong sequence
+  // in a proof record is worse than an honest "pending".
   const container = raw as Record<string, unknown> | null;
   const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(container?.messages) ? (container!.messages as unknown[]) : container ? [container] : [];
   const entries = list
     .map((item) => item as Record<string, unknown>)
-    .map((item) => ({ seq: typeof item?.seq === "number" ? item.seq : typeof item?.sequence === "number" ? item.sequence : undefined, timestamp: typeof item?.ts === "string" ? item.ts : typeof item?.timestamp === "string" ? item.timestamp : undefined, text: typeof item?.text === "string" ? item.text : undefined }))
+    .map((item) => ({ seq: typeof item?.seq === "number" ? item.seq : typeof item?.sequence === "number" ? item.sequence : undefined, timestamp: typeof item?.ts === "string" ? item.ts : typeof item?.timestamp === "string" ? item.timestamp : undefined, text: typeof item?.text === "string" ? item.text : undefined, nonce: item?.nonce !== undefined && item?.nonce !== null ? String(item.nonce) : undefined }))
     .filter((entry) => typeof entry.seq === "number");
-  const exact = entries.filter((entry) => entry.text === matchText.trim());
-  const pool = exact.length ? exact : entries;
-  if (pool.length) { const best = pool.reduce((max, entry) => (entry.seq! > max.seq! ? entry : max), pool[0]); return { seq: best.seq, timestamp: best.timestamp }; }
-  if (typeof container?.last_seq === "number") return { seq: container.last_seq };
-  return {};
+  const byNonce = entries.filter((entry) => entry.nonce === matchNonce);
+  const byText = entries.filter((entry) => entry.text === matchText.trim());
+  const pool = byNonce.length ? byNonce : byText;
+  if (!pool.length) return {};
+  const best = pool.reduce((max, entry) => (entry.seq! > max.seq! ? entry : max), pool[0]);
+  return { seq: best.seq, timestamp: best.timestamp };
 }
 
 export async function postSignedMessage(input: SignedMessageInput): Promise<PostedMessage> {
@@ -79,7 +84,7 @@ export async function postSignedMessage(input: SignedMessageInput): Promise<Post
     try {
       const path = `/r/${encodeURIComponent(input.room)}/say-signed/${encodeURIComponent(input.did)}/${encodeURIComponent(signature)}/${encodeURIComponent(nonce)}/${encodeURIComponent(text)}?format=json`;
       const result = await request(technocoreUrl(path));
-      let { seq: sequence, timestamp } = extractOwnMessage(result.raw, text);
+      let { seq: sequence, timestamp } = extractOwnMessage(result.raw, nonce, text);
       // The endpoint can also respond with a plain-text room tail rather than
       // JSON (observed directly in production) — in that case raw is just the
       // body string, so fall back to parsing our own posted line out of it.
