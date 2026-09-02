@@ -5,7 +5,7 @@ import { buildSigningPayload, isValidRoomName, normalizeText } from "@/lib/techn
 import { errorFromResponse, InvalidNameError, NetworkError, RateLimitError } from "@/lib/technocore/errors";
 import { technocoreUrl } from "@/lib/technocore/url";
 
-export type RoomMessage = { from?: string; did?: string; text?: string; seq?: number; sequence?: number; nonce?: string; timestamp?: string; [key: string]: unknown };
+export type RoomMessage = { from?: string; did?: string; text?: string; seq?: number; sequence?: number; nonce?: string; timestamp?: string; ts?: string; [key: string]: unknown };
 export type GetRoomOptions = { since?: number; limit?: number; wait?: number; format?: "json" | "text" };
 export type SignedMessageInput = { room: string; text: string; did: string; privateKeyBytes: Uint8Array };
 export type PostedMessage = { did: string; room: string; text: string; nonce: string; seq?: number; timestamp?: string; raw: unknown };
@@ -51,6 +51,26 @@ function parseSequenceFromTail(body: string, matchText: string): number | undefi
   return pool.reduce((max, entry) => Math.max(max, entry.seq), pool[0].seq);
 }
 
+function extractOwnMessage(raw: unknown, matchText: string): { seq?: number; timestamp?: string } {
+  // The write endpoint can respond with a single message object, a bare
+  // array of messages, or a room-tail wrapper ({count, first_seq, last_seq,
+  // messages: [...]}) — all confirmed shapes seen in production. Look in
+  // whichever shape shows up for the entry matching our own posted text,
+  // falling back to the newest entry (by seq) when no exact text match is
+  // found, and finally to the wrapper's own last_seq.
+  const container = raw as Record<string, unknown> | null;
+  const list: unknown[] = Array.isArray(raw) ? raw : Array.isArray(container?.messages) ? (container!.messages as unknown[]) : container ? [container] : [];
+  const entries = list
+    .map((item) => item as Record<string, unknown>)
+    .map((item) => ({ seq: typeof item?.seq === "number" ? item.seq : typeof item?.sequence === "number" ? item.sequence : undefined, timestamp: typeof item?.ts === "string" ? item.ts : typeof item?.timestamp === "string" ? item.timestamp : undefined, text: typeof item?.text === "string" ? item.text : undefined }))
+    .filter((entry) => typeof entry.seq === "number");
+  const exact = entries.filter((entry) => entry.text === matchText.trim());
+  const pool = exact.length ? exact : entries;
+  if (pool.length) { const best = pool.reduce((max, entry) => (entry.seq! > max.seq! ? entry : max), pool[0]); return { seq: best.seq, timestamp: best.timestamp }; }
+  if (typeof container?.last_seq === "number") return { seq: container.last_seq };
+  return {};
+}
+
 export async function postSignedMessage(input: SignedMessageInput): Promise<PostedMessage> {
   assertRoom(input.room); const text = normalizeText(input.text); if (!text) throw new Error("Message cannot be empty."); if (text.length > MAX_MESSAGE_CHARS) throw new Error(`Messages are limited to ${MAX_MESSAGE_CHARS} characters.`);
   let nonce = nextNonce(input.did, input.room);
@@ -59,13 +79,12 @@ export async function postSignedMessage(input: SignedMessageInput): Promise<Post
     try {
       const path = `/r/${encodeURIComponent(input.room)}/say-signed/${encodeURIComponent(input.did)}/${encodeURIComponent(signature)}/${encodeURIComponent(nonce)}/${encodeURIComponent(text)}?format=json`;
       const result = await request(technocoreUrl(path));
-      const raw = result.raw as Record<string, unknown>;
-      let sequence = raw?.seq ?? raw?.sequence;
+      let { seq: sequence, timestamp } = extractOwnMessage(result.raw, text);
       // The endpoint can also respond with a plain-text room tail rather than
       // JSON (observed directly in production) — in that case raw is just the
       // body string, so fall back to parsing our own posted line out of it.
       if (typeof sequence !== "number" && typeof result.raw === "string") sequence = parseSequenceFromTail(result.raw, text);
-      return { did: input.did, room: input.room, text, nonce, seq: typeof sequence === "number" ? sequence : undefined, timestamp: typeof raw?.timestamp === "string" ? raw.timestamp : undefined, raw: result.raw };
+      return { did: input.did, room: input.room, text, nonce, seq: sequence, timestamp, raw: result.raw };
     }
     catch (error) { if (attempt === 0 && error instanceof Error && /nonce|replay|duplicate/i.test(error.message)) { nonce = nextNonce(input.did, input.room); continue; } throw error; }
   }
