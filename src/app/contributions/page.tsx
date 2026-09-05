@@ -83,10 +83,11 @@ export default function ContributionsPage() {
             </div>
             <ContributionList
               items={contributions}
-              onCopy={(item) => void copy(proofDetails(item))}
-              onCopySequence={(item) =>
-                void copy(`Signed Technocore record: room ${item.room}, sequence ${item.sequence ?? "pending"}`)
-              }
+              onCopy={(item) => { if (item.sequence == null) return; void copy(proofDetails(item)); }}
+              onCopySequence={(item) => {
+                if (item.sequence == null) return;
+                void copy(`Signed Technocore record: room ${item.room}, sequence ${item.sequence}`);
+              }}
               onPrimary={setPrimary}
               onArchive={(id) => archive(id)}
               onDelete={(id) => setDeleteTargetId(id)}
