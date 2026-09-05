@@ -12,6 +12,16 @@ export class InvalidSignatureError extends TechnocoreError { constructor(message
 export class InvalidNameError extends TechnocoreError { constructor(message: string, status = 400, body?: string) { super(message, status, body); this.name = "InvalidNameError"; } }
 export class CapacityError extends TechnocoreError { constructor(message: string, status = 400, body?: string) { super(message, status, body); this.name = "CapacityError"; } }
 export class NetworkError extends TechnocoreError { constructor(message: string, body?: string) { super(message, undefined, body); this.name = "NetworkError"; } }
+export class ReceiptMismatchError extends TechnocoreError { constructor(message: string, status = 200, body?: string) { super(message, status, body); this.name = "ReceiptMismatchError"; } }
+
+export function formatTechnocoreError(error: unknown): string {
+  if (error instanceof TechnocoreError) {
+    const statusPart = error.status ? `[${error.status}] ` : "";
+    const bodyPart = error.body && error.body.trim() && error.body.trim() !== error.message.trim() ? `\n${error.body.slice(0, 500)}` : "";
+    return `${statusPart}${error.message}${bodyPart}`;
+  }
+  return error instanceof Error ? error.message : "Something went wrong.";
+}
 
 export function errorFromResponse(status: number, body: string): TechnocoreError {
   const lower = body.toLowerCase();
